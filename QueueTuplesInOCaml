@@ -1,0 +1,103 @@
+type ordering = LT | EQ | GT;;
+let compare s1 s2 = if s1<s2 then LT else
+			          if s1>s2 then GT else EQ;;
+
+module type ORDER =
+	sig
+		type t
+		val compare: t*int -> (t*int) list -> ordering
+	end;;
+
+module IntegerOrder: ORDER with type t = int =
+	struct
+		type t = int
+		let compare s1 s2 =
+			if (s2 != []) then (
+			match (s1,(List.hd s2)) with
+			| ((s11,_),(s22,_)) -> if s11<s22 then LT else
+			          if s11>s22 then GT else EQ
+			| _ -> LT	) else LT
+						end;;
+
+module ParaStrStrOrder: ORDER with type t = string*string =
+	struct
+
+		type t = string*string
+		let unzip = function x ->
+			match x with
+			| (s,_) ->s;;
+		let compare s1 s2 =
+			if (s2 != []) then (
+			match (s1,(List.hd s2)) with
+			| ((s11,_),(s22,_)) -> if (unzip s11)<(unzip s22) then LT else
+			          if (unzip s11)>(unzip s22) then GT else EQ
+			| _ -> LT	) else LT
+						end;;
+
+module type OBSLUGA_KOLEJKI =
+sig
+	type element
+  type 'a tk
+  exception Pusta of string
+  val tworz_pusta: unit -> 'a tk
+  val do_kolejki: element * 'a tk -> 'a tk
+	val z_kolejki: 'a tk -> 'a tk
+  val pierwszy_element: 'a tk -> element
+	val wyswietl_lista: 'a tk -> element list
+	val wyswietl_pary: 'a tk -> (element * int) list
+end;;
+
+module Kolejka (Element: ORDER) : OBSLUGA_KOLEJKI with type element = Element.t = struct
+	type element = Element.t
+	type 'a tk = KolejkaPusta | Skladowa of element * 'a tk
+	exception Pusta of string
+	let tworz_pusta() = KolejkaPusta
+	let do_kolejki(e,s) = Skladowa(e,s)
+  let z_kolejki = function Skladowa(_,s) -> s  | KolejkaPusta -> KolejkaPusta
+	let pierwszy_element = function Skladowa(e,_) -> e  | KolejkaPusta -> raise (Pusta "module Kolejka: top")
+	let rec wyswietl_lista k =
+		match k with
+		| KolejkaPusta -> []
+		| Skladowa(e,s) -> e::(wyswietl_lista s);;
+	let rec wyswietl_pary	a = (
+		let rec loop index lista_par k = (
+			match k with
+				| KolejkaPusta -> lista_par
+				| Skladowa(e,s) -> loop (index+1) (
+							let rec insert el list =
+								match (Element.compare (el,index) list) with
+									| LT  -> (el, index)::list
+									| EQ  -> (el, index)::list
+									| GT  -> (List.hd list)::
+								(insert el (List.tl list)) in insert e lista_par) s) in loop 0 [] a);;
+
+end;;
+
+module KolInt = Kolejka(IntegerOrder);;
+let k1 =  KolInt.(do_kolejki(5,
+		do_kolejki(10,
+		do_kolejki(2,
+		do_kolejki(1,
+		tworz_pusta())))));;
+KolInt.(pierwszy_element k1);;
+KolInt.(wyswietl_lista k1);;
+KolInt.(wyswietl_pary k1);;
+let k1 = KolInt.(z_kolejki k1);;
+KolInt.(wyswietl_lista k1);;
+let k1 = KolInt.tworz_pusta();;
+KolInt.(pierwszy_element k1);;
+
+module KolStrStr = Kolejka(ParaStrStrOrder);;
+let k2 =  KolStrStr.(do_kolejki(("Nowak","Jan"),
+		do_kolejki(("Adamczyk","Pawel"),
+		do_kolejki(("Kowalski","Jakub"),
+		do_kolejki(("Duda", "Agnieszka"),
+		tworz_pusta())))));;
+
+KolStrStr.(pierwszy_element k2);;
+KolStrStr.(wyswietl_lista k2);;
+KolStrStr.(wyswietl_pary k2);;
+let k2 = KolStrStr.(z_kolejki k2);;
+KolStrStr.(wyswietl_lista k2);;
+let k2 = KolStrStr.tworz_pusta();;
+KolStrStr.(pierwszy_element k2);;
